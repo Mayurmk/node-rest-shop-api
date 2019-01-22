@@ -2,22 +2,21 @@ const mongoose = require('mongoose');
 const User = require('../../models/userModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const APIError = require('../../helper/APIError');
+const httpStatus = require('http-status');
 
 exports.userSignUp = (req, res, next) => {
-
     User.find({email: req.body.email})
         .exec()
         .then((user) => {
             if (user.length >=1) {
-                return res.status(409).json({
-                    message: 'Mail Exists'
-                });
+
+                return Promise.reject(new APIError('Mail Exists', httpStatus.CONFLICT, true));
+
             } else {
                 bcrypt.hash(req.body.password, 10, (err, hash) => {
                     if (err) {
-                        return res.status(500).json({
-                            error: err
-                        });
+                        return Promise.reject(new APIError(`Error in converting hash password`, httpStatus.INTERNAL_SERVER_ERROR, true));
                     } else {
                         const user = new User({
                             _id: mongoose.Types.ObjectId(),
@@ -33,17 +32,17 @@ exports.userSignUp = (req, res, next) => {
                                 });
                             })
                             .catch((err) => {
-                                return res.status(500).json({
-                                    error: err
-                                });
+                                return Promise.reject(new APIError('Error for creating a new User', httpStatus.INTERNAL_SERVER_ERROR, true));
                             });
                     }
                 });
             }
         })
         .catch(err => {
-            return res.status(500).json({
-                error: err
+            return res.status(err.status).json({
+                error: {
+                    message: err.message
+                }
             });
         })
 };
